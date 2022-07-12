@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+
+jobs:
+
+  Build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependency
+        run: npm install
+
+
+  Deploy:
+    needs: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Deploy in EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+          HOSTNAME: ${{ secrets.HOSTNAME }}
+          USERNAME: ${{ secrets.USERNAME }}
+        
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key ${USERNAME}@${HOSTNAME} '
+            cd ./AWS_study &&
+            git reset --hard &&
+            git pull &&
+            npm install &&
+            pm2 stop index.js &&
+            pm2 start index.js
+          '
